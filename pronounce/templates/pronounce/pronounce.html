@@ -77,11 +77,26 @@
         }
         html += '<table border="1"><tr><th>Metric</th><th>Score</th></tr>';
         const metrics = [
-            ['IELTS', data.ielts_score && data.ielts_score.pronunciation],
-            ['PTE', data.pte_score && data.pte_score.pronunciation],
-            ['SpeechAce', data.speechace_score && data.speechace_score.pronunciation],
-            ['TOEIC', data.toeic_score && data.toeic_score.pronunciation],
-            ['CEFR', data.cefr_score && data.cefr_score.pronunciation]
+            [
+                'IELTS',
+                data.ielts_score?.pronunciation ?? data.text_score?.ielts_score?.pronunciation
+            ],
+            [
+                'PTE',
+                data.pte_score?.pronunciation ?? data.text_score?.pte_score?.pronunciation
+            ],
+            [
+                'SpeechAce',
+                data.speechace_score?.pronunciation ?? data.text_score?.speechace_score?.pronunciation
+            ],
+            [
+                'TOEIC',
+                data.toeic_score?.pronunciation ?? data.text_score?.toeic_score?.pronunciation
+            ],
+            [
+                'CEFR',
+                data.cefr_score?.pronunciation ?? data.text_score?.cefr_score?.pronunciation
+            ]
         ];
         metrics.forEach(([name, score]) => {
             if (score !== undefined) {

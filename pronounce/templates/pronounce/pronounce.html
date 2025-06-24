@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pronunciation Practice</title>
+</head>
+<body>
+    <h1>Pronunciation Practice</h1>
+    <p>Say the following word:</p>
+    <h2 id="prompt-word">{{ word }}</h2>
+    <button id="record-btn">Record</button>
+    <button id="stop-btn" disabled>Stop</button>
+    <form id="upload-form" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="word" value="{{ word }}">
+        <input type="file" id="audio-file" name="audio" style="display:none">
+    </form>
+    <div id="result"></div>
+    <script>
+    const recordBtn = document.getElementById('record-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const audioFileInput = document.getElementById('audio-file');
+    const form = document.getElementById('upload-form');
+    let mediaRecorder;
+    let audioChunks = [];
+    let mimeType = 'audio/webm';
+
+    recordBtn.onclick = async () => {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        mimeType = mediaRecorder.mimeType || 'audio/webm';
+        audioChunks = [];
+        mediaRecorder.ondataavailable = e => {
+            if (e.data.size > 0) audioChunks.push(e.data);
+        };
+        mediaRecorder.start();
+        recordBtn.disabled = true;
+        stopBtn.disabled = false;
+    };
+
+    stopBtn.onclick = async () => {
+        mediaRecorder.stop();
+        stopBtn.disabled = true;
+        recordBtn.disabled = false;
+        mediaRecorder.onstop = async () => {
+            const blob = new Blob(audioChunks, { type: mimeType });
+            const ext = mimeType.split('/')[1] || 'webm';
+            const file = new File([blob], `recording.${ext}`, { type: mimeType });
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            audioFileInput.files = dataTransfer.files;
+            const formData = new FormData(form);
+            const resp = await fetch('', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await resp.json();
+            const result = document.getElementById('result');
+            if (resp.ok) {
+                let html = `<p>Pronunciation Score: ${data.score}/100`;
+                if (data.ielts) {
+                    html += ` (IELTS/PTE: ${data.ielts})`;
+                }
+                html += '</p>';
+                if (data.phonemes && data.phonemes.length) {
+                    html += '<table><tr><th>Phoneme</th><th>Score</th></tr>';
+                    for (const p of data.phonemes) {
+                        html += `<tr><td>${p.phone}</td><td>${p.score}</td></tr>`;
+                    }
+                    html += '</table>';
+                }
+                if (data.warning) {
+                    html += `<p>${data.warning}</p>`;
+                }
+                result.innerHTML = html;
+            } else {
+                result.textContent = data.error || 'Error';
+            }
+        };
+    };
+    </script>
+</body>
+</html>

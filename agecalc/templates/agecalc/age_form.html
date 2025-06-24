@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Age Calculator</title>
+</head>
+<body>
+    <h1>Age Calculator</h1>
+    <form method="post">
+        {% csrf_token %}
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" value="{{ name }}" required><br>
+        <label for="birthday">Birthday:</label>
+        <input type="date" id="birthday" name="birthday" value="{{ birthday }}" required><br>
+        <button type="submit">Calculate Age</button>
+    </form>
+    {% if age is not None %}
+        <p>{{ name }} is {{ age }} years old.</p>
+    {% endif %}
+</body>
+</html>

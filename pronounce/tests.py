@@ -9,7 +9,7 @@ class PronounceViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Say the following word:')
 
-    @patch('pronounce.views.requests.post')
+    @patch('requests.post')
     def test_post_audio(self, mock_post):
         mock_post.return_value.text = 'ok'
         dummy_audio = SimpleUploadedFile('test.wav', b'\x00\x00', content_type='audio/wav')

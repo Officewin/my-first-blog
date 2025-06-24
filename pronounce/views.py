@@ -3,7 +3,6 @@ from pathlib import Path
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
-import requests
 
 BASE_DIR = Path(__file__).resolve().parent
 WORD_FILE = BASE_DIR / 'sat_words.txt'
@@ -30,6 +29,13 @@ def pronounce(request):
             'text': text,
         }
         try:
+            try:
+                import requests
+            except ModuleNotFoundError:
+                return HttpResponse(
+                    'Error: requests library not installed.', status=500
+                )
+
             resp = requests.post(API_URL, files=files, data=data, timeout=10)
             return HttpResponse(resp.text)
         except Exception as e:

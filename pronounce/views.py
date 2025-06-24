@@ -32,7 +32,11 @@ def pronounce(request):
             return JsonResponse({'error': 'Missing audio file'}, status=400)
         audio = request.FILES['audio']
         files = {
-            'user_audio_file': ('recording.wav', audio.read(), 'audio/wav'),
+            'user_audio_file': (
+                audio.name,
+                audio.read(),
+                audio.content_type or 'application/octet-stream',
+            ),
         }
         params = {
             'key': API_KEY,
@@ -51,7 +55,10 @@ def pronounce(request):
                         files=files,
                         timeout=10,
                     )
-                    data = resp.json()
+                    try:
+                        data = resp.json()
+                    except ValueError:
+                        raise URLError(f"Invalid response {resp.status_code}")
                 except requests.exceptions.RequestException as e:
                     msg = getattr(e, 'response', None)
                     if msg is not None:
@@ -85,7 +92,10 @@ def pronounce(request):
                 req = urllib.request.Request(f"{API_URL}?{query}", data=body_bytes)
                 req.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
                 with urllib.request.urlopen(req, timeout=10) as resp:
-                    data = json.loads(resp.read().decode())
+                    try:
+                        data = json.loads(resp.read().decode())
+                    except json.JSONDecodeError:
+                        raise URLError(f"Invalid response {resp.status}")
 
             if data.get("status") != "ok":
                 msg = data.get("detail_message", "Unknown error")

@@ -22,10 +22,12 @@
     const form = document.getElementById('upload-form');
     let mediaRecorder;
     let audioChunks = [];
+    let mimeType = 'audio/webm';
 
     recordBtn.onclick = async () => {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaRecorder = new MediaRecorder(stream);
+        mimeType = mediaRecorder.mimeType || 'audio/webm';
         audioChunks = [];
         mediaRecorder.ondataavailable = e => {
             if (e.data.size > 0) audioChunks.push(e.data);
@@ -40,8 +42,9 @@
         stopBtn.disabled = true;
         recordBtn.disabled = false;
         mediaRecorder.onstop = async () => {
-            const blob = new Blob(audioChunks, { type: 'audio/wav' });
-            const file = new File([blob], 'recording.wav', { type: 'audio/wav' });
+            const blob = new Blob(audioChunks, { type: mimeType });
+            const ext = mimeType.split('/')[1] || 'webm';
+            const file = new File([blob], `recording.${ext}`, { type: mimeType });
             const dataTransfer = new DataTransfer();
             dataTransfer.items.add(file);
             audioFileInput.files = dataTransfer.files;

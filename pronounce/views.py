@@ -3,6 +3,9 @@ from pathlib import Path
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+import json
+from .models import PronunciationHistory
 import uuid
 import urllib.request
 from urllib.error import URLError
@@ -21,7 +24,18 @@ def get_random_word():
     return random.choice(words)
 
 
+def _save_history(user, text: str, payload: str) -> None:
+    """Persist a JSON payload if it can be parsed."""
+    try:
+        data = json.loads(payload)
+    except json.JSONDecodeError:
+        return
+    if user.is_authenticated:
+        PronunciationHistory.objects.create(user=user, text=text, response=data)
+
+
 @csrf_exempt
+@login_required
 def pronounce(request):
     if request.method == 'POST':
         text = request.POST.get('word')
@@ -44,7 +58,9 @@ def pronounce(request):
                 import requests
                 try:
                     resp = requests.post(API_URL, params=params, data=params, files=files, timeout=10)
-                    return HttpResponse(resp.text)
+                    content = resp.text
+                    _save_history(request.user, text, content)
+                    return HttpResponse(content)
                 except requests.exceptions.RequestException as e:
                     msg = getattr(e, 'response', None)
                     if msg is not None:
@@ -79,7 +95,9 @@ def pronounce(request):
                 req = urllib.request.Request(f"{API_URL}?{query}", data=body_bytes)
                 req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
                 with urllib.request.urlopen(req, timeout=10) as resp:
-                    return HttpResponse(resp.read().decode())
+                    content = resp.read().decode()
+                    _save_history(request.user, text, content)
+                    return HttpResponse(content)
         except URLError as e:
             msg = getattr(e, 'reason', str(e))
             return HttpResponse(f'Network error: {msg}', status=502)
@@ -88,3 +106,11 @@ def pronounce(request):
 
     word = get_random_word()
     return render(request, 'pronounce/pronounce.html', {'word': word})
+
+
+@login_required
+def history(request):
+    records = PronunciationHistory.objects.filter(user=request.user).order_by(
+        "-created"
+    )[:50]
+    return render(request, "pronounce/history.html", {"history": records})

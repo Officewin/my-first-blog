@@ -19,9 +19,16 @@ class PronounceViewTests(TestCase):
     def _init_session(self, words=None, index=0):
         if words is None:
             words = ['test'] + [f"w{i}" for i in range(1,10)]
+        today = datetime.date.today()
+        # Ensure tests use the same timezone-aware date as the view
+        try:
+            from django.utils import timezone
+            today = timezone.now().date()
+        except Exception:
+            pass
         DailyPractice.objects.update_or_create(
             user=self.user,
-            date=datetime.date.today(),
+            date=today,
             defaults={"words": words, "index": index},
         )
         return words

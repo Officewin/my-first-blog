@@ -14,7 +14,7 @@
         <input type="hidden" name="word" value="{{ word }}">
         <input type="file" id="audio-file" name="audio" style="display:none">
     </form>
-    <pre id="result"></pre>
+    <div id="result"></div>
     <script>
     const recordBtn = document.getElementById('record-btn');
     const stopBtn = document.getElementById('stop-btn');
@@ -51,9 +51,46 @@
                 body: formData
             });
             const text = await resp.text();
-            document.getElementById('result').textContent = text;
+            const container = document.getElementById('result');
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                container.textContent = text;
+                return;
+            }
+            container.innerHTML = formatAsTable(data);
         };
     };
+
+    function formatAsTable(data) {
+        let html = '';
+        if (data.text_score && data.text_score.word_score_list) {
+            data.text_score.word_score_list.forEach(word => {
+                html += `<h3>${word.word}</h3>`;
+                html += '<table border="1"><tr><th>Phoneme</th><th>Score</th></tr>';
+                (word.phone_score_list || []).forEach(p => {
+                    html += `<tr><td>${p.phone}</td><td>${p.quality_score}</td></tr>`;
+                });
+                html += '</table>';
+            });
+        }
+        html += '<table border="1"><tr><th>Metric</th><th>Score</th></tr>';
+        const metrics = [
+            ['IELTS', data.ielts_score && data.ielts_score.pronunciation],
+            ['PTE', data.pte_score && data.pte_score.pronunciation],
+            ['SpeechAce', data.speechace_score && data.speechace_score.pronunciation],
+            ['TOEIC', data.toeic_score && data.toeic_score.pronunciation],
+            ['CEFR', data.cefr_score && data.cefr_score.pronunciation]
+        ];
+        metrics.forEach(([name, score]) => {
+            if (score !== undefined) {
+                html += `<tr><td>${name}</td><td>${score}</td></tr>`;
+            }
+        });
+        html += '</table>';
+        return html;
+    }
     </script>
 </body>
 </html>

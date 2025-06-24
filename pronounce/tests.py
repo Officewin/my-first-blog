@@ -98,3 +98,12 @@ class PronounceViewTests(TestCase):
         self.client.post(reverse('pronounce'), {'word': 'test', 'audio': dummy_audio})
         resp = self.client.get(reverse('pronounce_history'))
         self.assertContains(resp, 'test')
+
+    def test_history_handles_missing_table(self):
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute('DROP TABLE IF EXISTS pronounce_pronunciationhistory')
+        self.client.login(username='tester', password='complexpass123')
+        resp = self.client.get(reverse('pronounce_history'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'No history yet')

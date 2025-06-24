@@ -118,9 +118,11 @@ def pronounce(request):
 @login_required
 def history(request):
     try:
-        records = PronunciationHistory.objects.filter(user=request.user).order_by(
-            "-created"
-        )[:50]
+        records = list(
+            PronunciationHistory.objects.filter(user=request.user).order_by(
+                "-created"
+            )[:50]
+        )
     except OperationalError:
         records = []
     return render(request, "pronounce/history.html", {"history": records})

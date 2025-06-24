@@ -14,7 +14,7 @@
         <input type="hidden" name="word" value="{{ word }}">
         <input type="file" id="audio-file" name="audio" style="display:none">
     </form>
-    <pre id="result"></pre>
+    <div id="result"></div>
     <script>
     const recordBtn = document.getElementById('record-btn');
     const stopBtn = document.getElementById('stop-btn');
@@ -50,8 +50,28 @@
                 method: 'POST',
                 body: formData
             });
-            const text = await resp.text();
-            document.getElementById('result').textContent = text;
+            const data = await resp.json();
+            const result = document.getElementById('result');
+            if (resp.ok) {
+                let html = `<p>Pronunciation Score: ${data.score}/100`;
+                if (data.ielts) {
+                    html += ` (IELTS/PTE: ${data.ielts})`;
+                }
+                html += '</p>';
+                if (data.phonemes && data.phonemes.length) {
+                    html += '<table><tr><th>Phoneme</th><th>Score</th></tr>';
+                    for (const p of data.phonemes) {
+                        html += `<tr><td>${p.phone}</td><td>${p.score}</td></tr>`;
+                    }
+                    html += '</table>';
+                }
+                if (data.warning) {
+                    html += `<p>${data.warning}</p>`;
+                }
+                result.innerHTML = html;
+            } else {
+                result.textContent = data.error || 'Error';
+            }
         };
     };
     </script>

@@ -108,3 +108,15 @@ class PronounceViewTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'No history yet')
         self.assertContains(resp, 'python manage.py migrate')
+
+    def test_history_parses_string_payload(self):
+        from pronounce.models import PronunciationHistory
+        self.client.login(username='tester', password='complexpass123')
+        PronunciationHistory.objects.create(
+            user=self.user,
+            text='foo',
+            response='{"ielts_score":{"pronunciation":7.0}}'
+        )
+        resp = self.client.get(reverse('pronounce_history'))
+        self.assertContains(resp, 'foo')
+        self.assertContains(resp, '7.0')

@@ -1,6 +1,8 @@
 from django.test import TestCase
 from django.urls import reverse
 from unittest.mock import patch
+from urllib.error import URLError
+import requests
 from django.core.files.uploadedfile import SimpleUploadedFile
 import io
 import sys
@@ -32,3 +34,18 @@ class PronounceViewTests(TestCase):
                 response = self.client.post(reverse('pronounce'), {'word': 'test', 'audio': dummy_audio})
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, 'ok')
+
+    @patch('requests.post', side_effect=requests.exceptions.RequestException('boom'))
+    def test_network_error_requests(self, mock_post):
+        dummy_audio = SimpleUploadedFile('test.wav', b'\x00\x00', content_type='audio/wav')
+        response = self.client.post(reverse('pronounce'), {'word': 'test', 'audio': dummy_audio})
+        self.assertEqual(response.status_code, 502)
+        self.assertIn('Network error', response.content.decode())
+
+    def test_network_error_urllib(self):
+        dummy_audio = SimpleUploadedFile('test.wav', b'\x00\x00', content_type='audio/wav')
+        with patch.dict('sys.modules', {'requests': None}):
+            with patch('urllib.request.urlopen', side_effect=URLError('fail')):
+                response = self.client.post(reverse('pronounce'), {'word': 'test', 'audio': dummy_audio})
+                self.assertEqual(response.status_code, 502)
+                self.assertIn('Network error', response.content.decode())

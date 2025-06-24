@@ -34,8 +34,16 @@ def pronounce(request):
         try:
             try:
                 import requests
-                resp = requests.post(API_URL, files=files, data=data, timeout=10)
-                return HttpResponse(resp.text)
+                try:
+                    resp = requests.post(API_URL, files=files, data=data, timeout=10)
+                    return HttpResponse(resp.text)
+                except requests.exceptions.RequestException as e:
+                    msg = getattr(e, 'response', None)
+                    if msg is not None:
+                        msg = f'{msg.status_code} {msg.reason}'
+                    else:
+                        msg = str(e)
+                    raise URLError(msg)
             except ModuleNotFoundError:
                 boundary = uuid.uuid4().hex
                 body_parts = []

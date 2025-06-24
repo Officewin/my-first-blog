@@ -6,6 +6,7 @@ from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 import json
 from .models import PronunciationHistory
+from django.db import OperationalError
 import uuid
 import urllib.request
 from urllib.error import URLError
@@ -31,7 +32,13 @@ def _save_history(user, text: str, payload: str) -> None:
     except json.JSONDecodeError:
         return
     if user.is_authenticated:
-        PronunciationHistory.objects.create(user=user, text=text, response=data)
+        try:
+            PronunciationHistory.objects.create(
+                user=user, text=text, response=data
+            )
+        except OperationalError:
+            # Table might not exist if migrations haven't been run.
+            pass
 
 
 @csrf_exempt
@@ -110,7 +117,10 @@ def pronounce(request):
 
 @login_required
 def history(request):
-    records = PronunciationHistory.objects.filter(user=request.user).order_by(
-        "-created"
-    )[:50]
+    try:
+        records = PronunciationHistory.objects.filter(user=request.user).order_by(
+            "-created"
+        )[:50]
+    except OperationalError:
+        records = []
     return render(request, "pronounce/history.html", {"history": records})

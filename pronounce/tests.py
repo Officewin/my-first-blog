@@ -22,8 +22,8 @@ class PronounceViewTests(TestCase):
         self.assertContains(response, 'ok')
         mock_post.assert_called_once()
         args, kwargs = mock_post.call_args
-        self.assertIn('params', kwargs)
-        self.assertEqual(kwargs['params']['user_text'], 'test')
+        self.assertIn('data', kwargs)
+        self.assertEqual(kwargs['data']['user_text'], 'test')
 
     def test_post_audio_without_requests(self):
         dummy_audio = SimpleUploadedFile('test.wav', b'\x00\x00', content_type='audio/wav')

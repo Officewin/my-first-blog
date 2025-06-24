@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'blog',
     'agecalc',
     'accounts',
+    'pronounce',
 ]
 
 MIDDLEWARE = [

@@ -10,12 +10,14 @@
                 <p>
                     Logged in as {{ user.username }} |
                     <a href="{% url 'age_form' %}">Age Calculator</a> |
+                    <a href="{% url 'pronounce' %}">Pronunciation Practice</a> |
                     <a href="{% url 'logout' %}">Logout</a>
                 </p>
             {% else %}
                 <p>
                     <a href="{% url 'login' %}">Login</a> |
-                    <a href="{% url 'signup' %}">Sign Up</a>
+                    <a href="{% url 'signup' %}">Sign Up</a> |
+                    <a href="{% url 'pronounce' %}">Pronunciation Practice</a>
                 </p>
             {% endif %}
         </header>

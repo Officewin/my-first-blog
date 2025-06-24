@@ -30,6 +30,11 @@
         <tr><td colspan="7">No history yet.</td></tr>
         {% endfor %}
     </table>
+    {% if migration_needed %}
+    <p style="color: red;">
+        History table missing. Run <code>python manage.py migrate</code> to set it up.
+    </p>
+    {% endif %}
     <p><a href="{% url 'pronounce' %}">Back to practice</a></p>
 </body>
 </html>

@@ -117,6 +117,7 @@ def pronounce(request):
 
 @login_required
 def history(request):
+    migration_needed = False
     try:
         records = list(
             PronunciationHistory.objects.filter(user=request.user).order_by(
@@ -125,4 +126,9 @@ def history(request):
         )
     except OperationalError:
         records = []
-    return render(request, "pronounce/history.html", {"history": records})
+        migration_needed = True
+    return render(
+        request,
+        "pronounce/history.html",
+        {"history": records, "migration_needed": migration_needed},
+    )

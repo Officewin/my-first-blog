@@ -107,3 +107,4 @@ class PronounceViewTests(TestCase):
         resp = self.client.get(reverse('pronounce_history'))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'No history yet')
+        self.assertContains(resp, 'python manage.py migrate')

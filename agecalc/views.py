@@ -1,7 +1,9 @@
 from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
 from datetime import date
 
 
+@login_required
 def age_form(request):
     age = None
     name = ''

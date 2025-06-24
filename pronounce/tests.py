@@ -1,6 +1,6 @@
 from django.test import TestCase
 from django.urls import reverse
-from unittest.mock import patch
+from unittest.mock import patch, ANY
 from urllib.error import URLError
 import requests
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -20,6 +20,10 @@ class PronounceViewTests(TestCase):
         response = self.client.post(reverse('pronounce'), {'word': 'test', 'audio': dummy_audio})
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'ok')
+        mock_post.assert_called_once()
+        args, kwargs = mock_post.call_args
+        self.assertIn('params', kwargs)
+        self.assertEqual(kwargs['params']['user_text'], 'test')
 
     def test_post_audio_without_requests(self):
         dummy_audio = SimpleUploadedFile('test.wav', b'\x00\x00', content_type='audio/wav')

@@ -33,6 +33,7 @@ def pronounce(request):
             'key': API_KEY,
             'dialect': 'en-us',
             'text': text,
+            'user_text': text,
         }
         try:
             try:

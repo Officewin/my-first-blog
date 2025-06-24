@@ -12,15 +12,13 @@ def metric_score(data, metric):
         except json.JSONDecodeError:
             return None
     metric_key = f"{metric.lower()}_score"
-    try:
-        return data.get(metric_key, {}).get("pronunciation")
-    except AttributeError:
-        pass
-    try:
-        return (
-            data.get("text_score", {})
-            .get(metric_key, {})
-            .get("pronunciation")
-        )
-    except AttributeError:
-        return None
+    score = None
+    if isinstance(data, dict):
+        score = data.get(metric_key, {}).get("pronunciation")
+        if score is None:
+            score = (
+                data.get("text_score", {})
+                .get(metric_key, {})
+                .get("pronunciation")
+            )
+    return score if score is not None else ""

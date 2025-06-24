@@ -5,6 +5,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
 import uuid
 import urllib.request
+from urllib.error import URLError
 
 BASE_DIR = Path(__file__).resolve().parent
 WORD_FILE = BASE_DIR / 'sat_words.txt'
@@ -62,6 +63,9 @@ def pronounce(request):
                 req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
                 with urllib.request.urlopen(req, timeout=10) as resp:
                     return HttpResponse(resp.read().decode())
+        except URLError as e:
+            msg = getattr(e, 'reason', str(e))
+            return HttpResponse(f'Network error: {msg}', status=502)
         except Exception as e:
             return HttpResponse(f'Error: {e}', status=500)
 

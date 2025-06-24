@@ -176,6 +176,26 @@ class PronounceViewTests(TestCase):
         resp = self.client.get(reverse('pronounce'))
         self.assertContains(resp, 'Practice 1 / 3')
 
+    @patch("requests.post")
+    def test_daily_limit_persists_across_sessions(self, mock_post):
+        mock_post.return_value.text = "{}"
+        self.client.login(username="tester", password="complexpass123")
+        words = self._init_session([f"w{i}" for i in range(10)])
+        dummy_audio = SimpleUploadedFile("test.wav", b"\x00\x00", content_type="audio/wav")
+        for i in range(5):
+            resp = self.client.post(reverse("pronounce"), {"word": words[i], "audio": dummy_audio})
+            self.assertEqual(resp.status_code, 200)
+        self.client.logout()
+        from django.test import Client
+        self.client = Client()
+        self.client.login(username="tester", password="complexpass123")
+        for i in range(5, 10):
+            resp = self.client.post(reverse("pronounce"), {"word": words[i], "audio": dummy_audio})
+            self.assertEqual(resp.status_code, 200)
+        resp = self.client.post(reverse("pronounce"), {"word": "extra", "audio": dummy_audio})
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("Daily quota reached", resp.content.decode())
+
     def test_unexpected_word(self):
         self.client.login(username='tester', password='complexpass123')
         words = self._init_session(['a', 'b', 'c'])

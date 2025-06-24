@@ -3,6 +3,8 @@ from pathlib import Path
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
+import uuid
+import urllib.request
 
 BASE_DIR = Path(__file__).resolve().parent
 WORD_FILE = BASE_DIR / 'sat_words.txt'
@@ -31,13 +33,35 @@ def pronounce(request):
         try:
             try:
                 import requests
+                resp = requests.post(API_URL, files=files, data=data, timeout=10)
+                return HttpResponse(resp.text)
             except ModuleNotFoundError:
-                return HttpResponse(
-                    'Error: requests library not installed.', status=500
+                boundary = uuid.uuid4().hex
+                body_parts = []
+                for name, (filename, content, content_type) in files.items():
+                    body_parts.extend([
+                        f'--{boundary}',
+                        f'Content-Disposition: form-data; name="{name}"; filename="{filename}"',
+                        f'Content-Type: {content_type}',
+                        '',
+                        content,
+                    ])
+                for name, value in data.items():
+                    body_parts.extend([
+                        f'--{boundary}',
+                        f'Content-Disposition: form-data; name="{name}"',
+                        '',
+                        value,
+                    ])
+                body_parts.append(f'--{boundary}--')
+                body_parts.append('')
+                body_bytes = b"\r\n".join(
+                    part if isinstance(part, bytes) else part.encode() for part in body_parts
                 )
-
-            resp = requests.post(API_URL, files=files, data=data, timeout=10)
-            return HttpResponse(resp.text)
+                req = urllib.request.Request(API_URL, data=body_bytes)
+                req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    return HttpResponse(resp.read().decode())
         except Exception as e:
             return HttpResponse(f'Error: {e}', status=500)
 

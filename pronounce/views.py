@@ -43,7 +43,7 @@ def pronounce(request):
             try:
                 import requests
                 try:
-                    resp = requests.post(API_URL, data=params, files=files, timeout=10)
+                    resp = requests.post(API_URL, params=params, data=params, files=files, timeout=10)
                     return HttpResponse(resp.text)
                 except requests.exceptions.RequestException as e:
                     msg = getattr(e, 'response', None)
@@ -75,7 +75,8 @@ def pronounce(request):
                 body_bytes = b"\r\n".join(
                     part if isinstance(part, bytes) else part.encode() for part in body_parts
                 )
-                req = urllib.request.Request(API_URL, data=body_bytes)
+                query = urllib.parse.urlencode(params)
+                req = urllib.request.Request(f"{API_URL}?{query}", data=body_bytes)
                 req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
                 with urllib.request.urlopen(req, timeout=10) as resp:
                     return HttpResponse(resp.read().decode())

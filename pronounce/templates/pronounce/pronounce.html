@@ -36,12 +36,13 @@
     const uploadBtn = document.getElementById('upload-btn');
     const rerecordBtn = document.getElementById('rerecord-btn');
     let mediaRecorder;
+    let currentStream;
     let audioChunks = [];
     let limitTimer;
 
     recordBtn.onclick = async () => {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
+        currentStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(currentStream);
         audioChunks = [];
         mediaRecorder.ondataavailable = e => {
             if (e.data.size > 0) audioChunks.push(e.data);
@@ -64,6 +65,9 @@
         clearTimeout(limitTimer);
         if (mediaRecorder && mediaRecorder.state === 'recording') {
             mediaRecorder.stop();
+            if (currentStream) {
+                currentStream.getTracks().forEach(t => t.stop());
+            }
         }
         stopBtn.disabled = true;
         recordBtn.disabled = false;
@@ -72,12 +76,13 @@
     stopBtn.onclick = stopRecording;
 
     function preparePlayback() {
-        const blob = new Blob(audioChunks, { type: 'audio/wav' });
-        const file = new File([blob], 'recording.wav', { type: 'audio/wav' });
+        const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+        const file = new File([blob], 'recording.webm', { type: mediaRecorder.mimeType || 'audio/webm' });
         const dataTransfer = new DataTransfer();
         dataTransfer.items.add(file);
         audioFileInput.files = dataTransfer.files;
         playback.src = URL.createObjectURL(blob);
+        playback.load();
         playback.style.display = 'block';
         uploadBtn.style.display = 'inline';
         rerecordBtn.style.display = 'inline';
@@ -107,10 +112,14 @@
 
     rerecordBtn.onclick = () => {
         playback.pause();
+        if (playback.src) {
+            URL.revokeObjectURL(playback.src);
+        }
         playback.removeAttribute('src');
         playback.style.display = 'none';
         uploadBtn.style.display = 'none';
         rerecordBtn.style.display = 'none';
+        audioChunks = [];
         document.getElementById('result').innerHTML = '';
     };
 

@@ -53,3 +53,14 @@ class PronounceViewTests(TestCase):
                 response = self.client.post(reverse('pronounce'), {'word': 'test', 'audio': dummy_audio})
                 self.assertEqual(response.status_code, 502)
                 self.assertIn('Network error', response.content.decode())
+
+    def test_missing_word(self):
+        dummy_audio = SimpleUploadedFile('test.wav', b'\x00\x00', content_type='audio/wav')
+        response = self.client.post(reverse('pronounce'), {'audio': dummy_audio})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Missing parameter: word', response.content.decode())
+
+    def test_missing_audio(self):
+        response = self.client.post(reverse('pronounce'), {'word': 'test'})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Missing audio file', response.content.decode())

@@ -23,9 +23,13 @@ def get_random_word():
 
 @csrf_exempt
 def pronounce(request):
-    if request.method == 'POST' and request.FILES.get('audio'):
+    if request.method == 'POST':
+        text = request.POST.get('word')
+        if not text:
+            return HttpResponse('Missing parameter: word', status=400)
+        if 'audio' not in request.FILES:
+            return HttpResponse('Missing audio file', status=400)
         audio = request.FILES['audio']
-        text = request.POST.get('word', '')
         files = {
             'user_audio_file': ('recording.wav', audio.read(), 'audio/wav'),
         }

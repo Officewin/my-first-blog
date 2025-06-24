@@ -1,6 +1,7 @@
 import random
 from pathlib import Path
 from django.http import HttpResponse
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
@@ -25,6 +26,17 @@ def get_random_word():
     return random.choice(words)
 
 
+def _daily_words(session):
+    """Return today's practice words list and current index."""
+    today = timezone.now().date().isoformat()
+    if session.get("practice_date") != today:
+        words = WORD_FILE.read_text().splitlines()
+        session["practice_words"] = random.sample(words, 10)
+        session["practice_index"] = 0
+        session["practice_date"] = today
+    return session["practice_words"], session.get("practice_index", 0)
+
+
 def _save_history(user, text: str, payload: str) -> None:
     """Persist a JSON payload if it can be parsed."""
     try:
@@ -44,10 +56,17 @@ def _save_history(user, text: str, payload: str) -> None:
 @csrf_exempt
 @login_required
 def pronounce(request):
+    words, index = _daily_words(request.session)
+
     if request.method == 'POST':
+        if index >= len(words):
+            return HttpResponse('Daily quota reached', status=400)
         text = request.POST.get('word')
         if not text:
             return HttpResponse('Missing parameter: word', status=400)
+        expected = words[index]
+        if text != expected:
+            return HttpResponse('Unexpected word', status=400)
         if 'audio' not in request.FILES:
             return HttpResponse('Missing audio file', status=400)
         audio = request.FILES['audio']
@@ -67,6 +86,7 @@ def pronounce(request):
                     resp = requests.post(API_URL, params=params, data=params, files=files, timeout=10)
                     content = resp.text
                     _save_history(request.user, text, content)
+                    request.session['practice_index'] = index + 1
                     return HttpResponse(content)
                 except requests.exceptions.RequestException as e:
                     msg = getattr(e, 'response', None)
@@ -104,6 +124,7 @@ def pronounce(request):
                 with urllib.request.urlopen(req, timeout=10) as resp:
                     content = resp.read().decode()
                     _save_history(request.user, text, content)
+                    request.session['practice_index'] = index + 1
                     return HttpResponse(content)
         except URLError as e:
             msg = getattr(e, 'reason', str(e))
@@ -111,8 +132,19 @@ def pronounce(request):
         except Exception as e:
             return HttpResponse(f'Error: {e}', status=500)
 
-    word = get_random_word()
-    return render(request, 'pronounce/pronounce.html', {'word': word})
+    if index >= len(words):
+        return render(
+            request,
+            'pronounce/pronounce.html',
+            {'done': True, 'count': index, 'total': len(words)},
+        )
+
+    word = words[index]
+    return render(
+        request,
+        'pronounce/pronounce.html',
+        {'word': word, 'count': index, 'total': len(words)},
+    )
 
 
 @login_required

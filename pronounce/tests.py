@@ -1,5 +1,6 @@
 from django.test import TestCase
 from django.urls import reverse
+import datetime
 from unittest.mock import patch, ANY
 from urllib.error import URLError
 import requests
@@ -14,6 +15,16 @@ class PronounceViewTests(TestCase):
             username="tester", password="complexpass123"
         )
 
+    def _init_session(self, words=None, index=0):
+        if words is None:
+            words = ['test'] + [f"w{i}" for i in range(1,10)]
+        session = self.client.session
+        session['practice_date'] = str(datetime.date.today())
+        session['practice_words'] = words
+        session['practice_index'] = index
+        session.save()
+        return words
+
     def test_redirect_if_not_logged_in(self):
         response = self.client.get(reverse("pronounce"))
         login_url = reverse("login") + "?next=" + reverse("pronounce")
@@ -21,6 +32,7 @@ class PronounceViewTests(TestCase):
 
     def test_get_random_word_page_logged_in(self):
         self.client.login(username="tester", password="complexpass123")
+        self._init_session()
         response = self.client.get(reverse("pronounce"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Say the following word:")
@@ -30,15 +42,16 @@ class PronounceViewTests(TestCase):
         mock_post.return_value.text = 'ok'
         dummy_audio = SimpleUploadedFile('test.wav', b'\x00\x00', content_type='audio/wav')
         self.client.login(username='tester', password='complexpass123')
-        response = self.client.post(reverse('pronounce'), {'word': 'test', 'audio': dummy_audio})
+        words = self._init_session()
+        response = self.client.post(reverse('pronounce'), {'word': words[0], 'audio': dummy_audio})
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'ok')
         mock_post.assert_called_once()
         args, kwargs = mock_post.call_args
         self.assertIn('data', kwargs)
         self.assertIn('params', kwargs)
-        self.assertEqual(kwargs['data']['user_text'], 'test')
-        self.assertEqual(kwargs['params']['text'], 'test')
+        self.assertEqual(kwargs['data']['user_text'], words[0])
+        self.assertEqual(kwargs['params']['text'], words[0])
 
     def test_post_audio_without_requests(self):
         dummy_audio = SimpleUploadedFile('test.wav', b'\x00\x00', content_type='audio/wav')
@@ -51,7 +64,8 @@ class PronounceViewTests(TestCase):
             resp = Dummy(b'ok')
             with patch('urllib.request.urlopen', return_value=resp):
                 self.client.login(username='tester', password='complexpass123')
-                response = self.client.post(reverse('pronounce'), {'word': 'test', 'audio': dummy_audio})
+                words = self._init_session()
+                response = self.client.post(reverse('pronounce'), {'word': words[0], 'audio': dummy_audio})
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, 'ok')
 
@@ -59,7 +73,8 @@ class PronounceViewTests(TestCase):
     def test_network_error_requests(self, mock_post):
         dummy_audio = SimpleUploadedFile('test.wav', b'\x00\x00', content_type='audio/wav')
         self.client.login(username='tester', password='complexpass123')
-        response = self.client.post(reverse('pronounce'), {'word': 'test', 'audio': dummy_audio})
+        words = self._init_session()
+        response = self.client.post(reverse('pronounce'), {'word': words[0], 'audio': dummy_audio})
         self.assertEqual(response.status_code, 502)
         self.assertIn('Network error', response.content.decode())
 
@@ -68,20 +83,23 @@ class PronounceViewTests(TestCase):
         with patch.dict('sys.modules', {'requests': None}):
             with patch('urllib.request.urlopen', side_effect=URLError('fail')):
                 self.client.login(username='tester', password='complexpass123')
-                response = self.client.post(reverse('pronounce'), {'word': 'test', 'audio': dummy_audio})
+                words = self._init_session()
+                response = self.client.post(reverse('pronounce'), {'word': words[0], 'audio': dummy_audio})
                 self.assertEqual(response.status_code, 502)
                 self.assertIn('Network error', response.content.decode())
 
     def test_missing_word(self):
         dummy_audio = SimpleUploadedFile('test.wav', b'\x00\x00', content_type='audio/wav')
         self.client.login(username='tester', password='complexpass123')
+        self._init_session()
         response = self.client.post(reverse('pronounce'), {'audio': dummy_audio})
         self.assertEqual(response.status_code, 400)
         self.assertIn('Missing parameter: word', response.content.decode())
 
     def test_missing_audio(self):
         self.client.login(username='tester', password='complexpass123')
-        response = self.client.post(reverse('pronounce'), {'word': 'test'})
+        words = self._init_session()
+        response = self.client.post(reverse('pronounce'), {'word': words[0]})
         self.assertEqual(response.status_code, 400)
         self.assertIn('Missing audio file', response.content.decode())
 
@@ -94,8 +112,9 @@ class PronounceViewTests(TestCase):
     def test_history_shows_saved_entry(self, mock_post):
         mock_post.return_value.text = '{"ielts_score":{"pronunciation":2}}'
         self.client.login(username='tester', password='complexpass123')
+        words = self._init_session()
         dummy_audio = SimpleUploadedFile('test.wav', b'\x00\x00', content_type='audio/wav')
-        self.client.post(reverse('pronounce'), {'word': 'test', 'audio': dummy_audio})
+        self.client.post(reverse('pronounce'), {'word': words[0], 'audio': dummy_audio})
         resp = self.client.get(reverse('pronounce_history'))
         self.assertContains(resp, 'test')
         self.assertContains(resp, '2')
@@ -121,3 +140,24 @@ class PronounceViewTests(TestCase):
         resp = self.client.get(reverse('pronounce_history'))
         self.assertContains(resp, 'foo')
         self.assertContains(resp, '7.0')
+
+    @patch('requests.post')
+    def test_daily_limit(self, mock_post):
+        mock_post.return_value.text = '{}'
+        self.client.login(username='tester', password='complexpass123')
+        words = self._init_session([f'w{i}' for i in range(10)])
+        dummy_audio = SimpleUploadedFile('test.wav', b'\x00\x00', content_type='audio/wav')
+        for i in range(10):
+            resp = self.client.post(reverse('pronounce'), {'word': words[i], 'audio': dummy_audio})
+            self.assertEqual(resp.status_code, 200)
+        resp = self.client.post(reverse('pronounce'), {'word': 'extra', 'audio': dummy_audio})
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('Daily quota reached', resp.content.decode())
+
+    def test_unexpected_word(self):
+        self.client.login(username='tester', password='complexpass123')
+        words = self._init_session(['a', 'b', 'c'])
+        dummy_audio = SimpleUploadedFile('test.wav', b'\x00\x00', content_type='audio/wav')
+        resp = self.client.post(reverse('pronounce'), {'word': 'wrong', 'audio': dummy_audio})
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('Unexpected word', resp.content.decode())

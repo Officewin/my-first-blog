@@ -6,6 +6,10 @@
 <body>
     <h1>Pronunciation Practice</h1>
     <p><a href="{% url 'pronounce_history' %}">View History</a></p>
+    {% if done %}
+    <p>You have completed today's practice.</p>
+    {% else %}
+    <p>Practice {{ count }} / {{ total }}</p>
     <p>Say the following word:</p>
     <h2 id="prompt-word">{{ word }}</h2>
     <button id="record-btn">Record</button>
@@ -15,7 +19,11 @@
         <input type="hidden" name="word" value="{{ word }}">
         <input type="file" id="audio-file" name="audio" style="display:none">
     </form>
+    {% endif %}
     <div id="result"></div>
+    {% if not done %}
+    <button id="next-btn" style="display:none;">Next Word</button>
+    {% endif %}
     <script>
     const recordBtn = document.getElementById('record-btn');
     const stopBtn = document.getElementById('stop-btn');
@@ -61,6 +69,8 @@
                 return;
             }
             container.innerHTML = formatAsTable(data);
+            const nextBtn = document.getElementById('next-btn');
+            if (nextBtn) nextBtn.style.display = 'block';
         };
     };
 
@@ -106,6 +116,12 @@
         });
         html += '</table>';
         return html;
+    }
+    const nextBtnElem = document.getElementById('next-btn');
+    if (nextBtnElem) {
+        nextBtnElem.onclick = () => {
+            window.location.reload();
+        };
     }
     </script>
 </body>

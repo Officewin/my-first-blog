@@ -39,6 +39,17 @@ class PronounceViewTests(TestCase):
         self.assertEqual(kwargs['data']['user_text'], 'test')
         self.assertEqual(kwargs['params']['text'], 'test')
 
+    @patch('requests.post')
+    def test_api_error_message(self, mock_post):
+        mock_post.return_value.json.return_value = {
+            'status': 'error',
+            'short_message': 'error_missing_parameters',
+        }
+        dummy_audio = SimpleUploadedFile('test.wav', b'\x00\x00', content_type='audio/wav')
+        response = self.client.post(reverse('pronounce'), {'word': 'test', 'audio': dummy_audio})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['error'], 'error_missing_parameters')
+
     def test_post_audio_without_requests(self):
         dummy_audio = SimpleUploadedFile('test.wav', b'\x00\x00', content_type='audio/wav')
         with patch.dict('sys.modules', {'requests': None}):

@@ -98,7 +98,7 @@ def pronounce(request):
                         raise URLError(f"Invalid response {resp.status}")
 
             if data.get("status") != "ok":
-                msg = data.get("detail_message", "Unknown error")
+                msg = data.get("detail_message") or data.get("short_message") or "Unknown error"
                 return JsonResponse({"error": msg}, status=400)
 
             text_score = data.get("text_score", {})

@@ -8,6 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 import io
 import sys
 from django.contrib.auth import get_user_model
+from pronounce.models import DailyPractice
 
 class PronounceViewTests(TestCase):
     def setUp(self):
@@ -18,11 +19,11 @@ class PronounceViewTests(TestCase):
     def _init_session(self, words=None, index=0):
         if words is None:
             words = ['test'] + [f"w{i}" for i in range(1,10)]
-        session = self.client.session
-        session['practice_date'] = str(datetime.date.today())
-        session['practice_words'] = words
-        session['practice_index'] = index
-        session.save()
+        DailyPractice.objects.update_or_create(
+            user=self.user,
+            date=datetime.date.today(),
+            defaults={"words": words, "index": index},
+        )
         return words
 
     def test_redirect_if_not_logged_in(self):
@@ -153,6 +154,20 @@ class PronounceViewTests(TestCase):
         resp = self.client.post(reverse('pronounce'), {'word': 'extra', 'audio': dummy_audio})
         self.assertEqual(resp.status_code, 400)
         self.assertIn('Daily quota reached', resp.content.decode())
+
+    @patch('requests.post')
+    def test_progress_persists_across_sessions(self, mock_post):
+        mock_post.return_value.text = '{}'
+        self.client.login(username='tester', password='complexpass123')
+        words = self._init_session(['a', 'b', 'c'])
+        dummy_audio = SimpleUploadedFile('test.wav', b'\x00\x00', content_type='audio/wav')
+        self.client.post(reverse('pronounce'), {'word': words[0], 'audio': dummy_audio})
+        self.client.logout()
+        from django.test import Client
+        self.client = Client()
+        self.client.login(username='tester', password='complexpass123')
+        resp = self.client.get(reverse('pronounce'))
+        self.assertContains(resp, 'Practice 1 / 3')
 
     def test_unexpected_word(self):
         self.client.login(username='tester', password='complexpass123')

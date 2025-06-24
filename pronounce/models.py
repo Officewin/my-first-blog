@@ -15,3 +15,18 @@ class PronunciationHistory(models.Model):
     def __str__(self) -> str:  # pragma: no cover - simple representation
         return f"{self.user} - {self.text} ({self.created:%Y-%m-%d %H:%M:%S})"
 
+
+class DailyPractice(models.Model):
+    """Track each user's daily practice progress."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    date = models.DateField()
+    words = models.JSONField()
+    index = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        unique_together = ("user", "date")
+
+    def __str__(self) -> str:  # pragma: no cover - simple representation
+        return f"{self.user} {self.date} {self.index}/" f"{len(self.words)}"
+

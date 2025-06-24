@@ -6,7 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 import json
-from .models import PronunciationHistory
+from .models import PronunciationHistory, DailyPractice
 from django.db import OperationalError
 import uuid
 import urllib.request
@@ -26,15 +26,35 @@ def get_random_word():
     return random.choice(words)
 
 
-def _daily_words(session):
-    """Return today's practice words list and current index."""
-    today = timezone.now().date().isoformat()
-    if session.get("practice_date") != today:
-        words = WORD_FILE.read_text().splitlines()
-        session["practice_words"] = random.sample(words, 10)
-        session["practice_index"] = 0
-        session["practice_date"] = today
-    return session["practice_words"], session.get("practice_index", 0)
+def _daily_words(request):
+    """Return today's practice word list and index, using DB for persistence."""
+    today = timezone.now().date()
+    try:
+        record, created = DailyPractice.objects.get_or_create(
+            user=request.user,
+            date=today,
+            defaults={
+                "words": random.sample(
+                    WORD_FILE.read_text().splitlines(), 10
+                ),
+                "index": 0,
+            },
+        )
+        return record.words, record.index, record
+    except OperationalError:
+        # Fallback to session storage if migrations not run
+        session = request.session
+        key_date = session.get("practice_date")
+        if key_date != today.isoformat():
+            words = WORD_FILE.read_text().splitlines()
+            session["practice_words"] = random.sample(words, 10)
+            session["practice_index"] = 0
+            session["practice_date"] = today.isoformat()
+        return (
+            session["practice_words"],
+            session.get("practice_index", 0),
+            None,
+        )
 
 
 def _save_history(user, text: str, payload: str) -> None:
@@ -56,7 +76,7 @@ def _save_history(user, text: str, payload: str) -> None:
 @csrf_exempt
 @login_required
 def pronounce(request):
-    words, index = _daily_words(request.session)
+    words, index, record = _daily_words(request)
 
     if request.method == 'POST':
         if index >= len(words):
@@ -86,7 +106,11 @@ def pronounce(request):
                     resp = requests.post(API_URL, params=params, data=params, files=files, timeout=10)
                     content = resp.text
                     _save_history(request.user, text, content)
-                    request.session['practice_index'] = index + 1
+                    if record:
+                        record.index = index + 1
+                        record.save(update_fields=["index"])
+                    else:
+                        request.session['practice_index'] = index + 1
                     return HttpResponse(content)
                 except requests.exceptions.RequestException as e:
                     msg = getattr(e, 'response', None)
@@ -124,7 +148,11 @@ def pronounce(request):
                 with urllib.request.urlopen(req, timeout=10) as resp:
                     content = resp.read().decode()
                     _save_history(request.user, text, content)
-                    request.session['practice_index'] = index + 1
+                    if record:
+                        record.index = index + 1
+                        record.save(update_fields=["index"])
+                    else:
+                        request.session['practice_index'] = index + 1
                     return HttpResponse(content)
         except URLError as e:
             msg = getattr(e, 'reason', str(e))

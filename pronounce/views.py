@@ -6,10 +6,13 @@ from django.shortcuts import render
 import uuid
 import urllib.request
 from urllib.error import URLError
+import urllib.parse
 
 BASE_DIR = Path(__file__).resolve().parent
 WORD_FILE = BASE_DIR / 'sat_words.txt'
-API_KEY = 'f01m%2BMrbKgPs26UhyQmyLl2Df4dfbkx75NHmEQF756Mbbq%2FOjd9t%2BsTgIdZjuvns%2BbrK0%2BoY7rYjZ35btIXwKOMafdWNx3GDo%2BY%2BnlozkEvPj56RD0i4SIFXqswFBNF%2F'
+API_KEY = urllib.parse.unquote(
+    'f01m%2BMrbKgPs26UhyQmyLl2Df4dfbkx75NHmEQF756Mbbq%2FOjd9t%2BsTgIdZjuvns%2BbrK0%2BoY7rYjZ35btIXwKOMafdWNx3GDo%2BY%2BnlozkEvPj56RD0i4SIFXqswFBNF%2F'
+)
 API_URL = 'https://api2.speechace.com/api/scoring/text/v9/json'
 
 
@@ -26,7 +29,7 @@ def pronounce(request):
         files = {
             'user_audio_file': ('recording.wav', audio.read(), 'audio/wav'),
         }
-        data = {
+        params = {
             'key': API_KEY,
             'dialect': 'en-us',
             'text': text,
@@ -35,7 +38,7 @@ def pronounce(request):
             try:
                 import requests
                 try:
-                    resp = requests.post(API_URL, files=files, data=data, timeout=10)
+                    resp = requests.post(API_URL, params=params, files=files, timeout=10)
                     return HttpResponse(resp.text)
                 except requests.exceptions.RequestException as e:
                     msg = getattr(e, 'response', None)
@@ -55,19 +58,13 @@ def pronounce(request):
                         '',
                         content,
                     ])
-                for name, value in data.items():
-                    body_parts.extend([
-                        f'--{boundary}',
-                        f'Content-Disposition: form-data; name="{name}"',
-                        '',
-                        value,
-                    ])
                 body_parts.append(f'--{boundary}--')
                 body_parts.append('')
                 body_bytes = b"\r\n".join(
                     part if isinstance(part, bytes) else part.encode() for part in body_parts
                 )
-                req = urllib.request.Request(API_URL, data=body_bytes)
+                query = urllib.parse.urlencode(params)
+                req = urllib.request.Request(f"{API_URL}?{query}", data=body_bytes)
                 req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
                 with urllib.request.urlopen(req, timeout=10) as resp:
                     return HttpResponse(resp.read().decode())

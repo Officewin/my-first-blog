@@ -14,3 +14,8 @@ python manage.py runserver
 ```
 
 Log in and visit `/pronounce/` to record audio. Use the History link to view your past scores.
+
+Each user receives ten practice words per day.  The application records every
+submission in SQLite so the daily quota and history persist even after logging
+out or switching browsers.  Make sure migrations have been applied so the
+`DailyPractice`, `DailySubmission`, and `PronunciationHistory` tables exist.

@@ -108,7 +108,7 @@ def _save_history(user, text: str, payload: str) -> None:
 def pronounce(request):
     access = getattr(request.user, "app_access", None)
     if not access or not access.pronounce_easy:
-        return HttpResponse("Not authorized for this app", status=403)
+        return HttpResponse("it is not allowed", status=403)
     words, index, record = _daily_words(request)
     sub_record = _daily_submission(request.user)
 
@@ -217,7 +217,7 @@ def pronounce(request):
 def history(request):
     access = getattr(request.user, "app_access", None)
     if not access or not access.pronounce_easy:
-        return HttpResponse("Not authorized for this app", status=403)
+        return HttpResponse("it is not allowed", status=403)
     migration_needed = False
     try:
         records = list(

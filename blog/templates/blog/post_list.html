@@ -10,7 +10,17 @@
                 <p>
                     Logged in as {{ user.username }} |
                     <a href="{% url 'age_form' %}">Age Calculator</a> |
-                    <a href="{% url 'pronounce' %}">Pronunciation Practice</a> |
+                    {% with access=user.app_access %}
+                        {% if access and access.pronounce_advanced %}
+                            <a href="{% url 'pronounce_advanced' %}">Pronounce Advanced</a> |
+                        {% endif %}
+                        {% if access and access.pronounce_easy %}
+                            <a href="{% url 'pronounce_easy' %}">Pronounce Easy</a> |
+                        {% endif %}
+                        {% if not access or (not access.pronounce_advanced and not access.pronounce_easy) %}
+                            <a href="{% url 'pronounce' %}">Pronunciation Practice</a> |
+                        {% endif %}
+                    {% endwith %}
                     <form action="{% url 'logout' %}" method="post" style="display:inline;">
                         {% csrf_token %}
                         <button type="submit" style="background:none;border:none;padding:0;margin:0;color:#00f;text-decoration:underline;cursor:pointer;">Logout</button>
@@ -20,7 +30,8 @@
                 <p>
                     <a href="{% url 'login' %}">Login</a> |
                     <a href="{% url 'signup' %}">Sign Up</a> |
-                    <a href="{% url 'pronounce' %}">Pronunciation Practice</a>
+                    <a href="{% url 'pronounce_easy' %}">Pronounce Easy</a> |
+                    <a href="{% url 'pronounce_advanced' %}">Pronounce Advanced</a>
                 </p>
             {% endif %}
         </header>

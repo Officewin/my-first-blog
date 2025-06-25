@@ -45,6 +45,10 @@ def _daily_words(request):
             date=today,
             defaults={"words": choices, "index": 0},
         )
+        if not created and word_list and any(w not in word_list for w in record.words):
+            record.words = random.sample(word_list, min(10, len(word_list)))
+            record.index = 0
+            record.save(update_fields=["words", "index"])
         return record.words, record.index, record
     except OperationalError:
         # Fallback to session storage if migrations not run

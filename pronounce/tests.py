@@ -29,7 +29,7 @@ class PronounceViewTests(TestCase):
         DailyPractice.objects.update_or_create(
             user=self.user,
             date=today,
-            defaults={"words": words, "index": index, "level": "beginner"},
+            defaults={"words": words, "index": index},
         )
         DailySubmission.objects.update_or_create(
             user=self.user,
@@ -42,19 +42,6 @@ class PronounceViewTests(TestCase):
         response = self.client.get(reverse("pronounce"))
         login_url = reverse("login") + "?next=" + reverse("pronounce")
         self.assertRedirects(response, login_url)
-
-    def test_select_level_first_visit(self):
-        self.client.login(username="tester", password="complexpass123")
-        resp = self.client.get(reverse("pronounce"))
-        self.assertContains(resp, "Select Practice Level")
-
-    def test_choose_advanced_level(self):
-        self.client.login(username="tester", password="complexpass123")
-        resp = self.client.get(reverse("pronounce") + "?level=advanced")
-        self.assertContains(resp, "Say the following word:")
-        from django.utils import timezone
-        record = DailyPractice.objects.get(user=self.user, date=timezone.now().date())
-        self.assertEqual(record.level, "advanced")
 
     def test_get_random_word_page_logged_in(self):
         self.client.login(username="tester", password="complexpass123")

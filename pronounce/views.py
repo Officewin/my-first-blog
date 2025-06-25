@@ -14,15 +14,20 @@ from urllib.error import URLError
 import urllib.parse
 
 BASE_DIR = Path(__file__).resolve().parent
-WORD_FILE = BASE_DIR / 'sat_words.txt'
+BEGINNER_FILE = BASE_DIR / 'beginner_words.txt'
+ADVANCED_FILE = BASE_DIR / 'advanced_words.txt'
 API_KEY = urllib.parse.unquote(
     'f01m%2BMrbKgPs26UhyQmyLl2Df4dfbkx75NHmEQF756Mbbq%2FOjd9t%2BsTgIdZjuvns%2BbrK0%2BoY7rYjZ35btIXwKOMafdWNx3GDo%2BY%2BnlozkEvPj56RD0i4SIFXqswFBNF%2F'
 )
 API_URL = 'https://api2.speechace.com/api/scoring/text/v9/json'
 
 
-def get_random_word():
-    words = WORD_FILE.read_text().splitlines()
+def _load_words(level: str):
+    file_path = ADVANCED_FILE if level == "advanced" else BEGINNER_FILE
+    return file_path.read_text().splitlines()
+
+def get_random_word(level="beginner"):
+    words = _load_words(level)
     return random.choice(words)
 
 
@@ -30,15 +35,19 @@ def _daily_words(request):
     """Return today's practice word list and index, using DB for persistence."""
     today = timezone.now().date()
     try:
-        record, created = DailyPractice.objects.get_or_create(
+        record = DailyPractice.objects.filter(user=request.user, date=today).first()
+        if record:
+            return record.words, record.index, record
+        level = request.GET.get("level")
+        if not level:
+            return None, None, None
+        words = random.sample(_load_words(level), 10)
+        record = DailyPractice.objects.create(
             user=request.user,
             date=today,
-            defaults={
-                "words": random.sample(
-                    WORD_FILE.read_text().splitlines(), 10
-                ),
-                "index": 0,
-            },
+            words=words,
+            index=0,
+            level=level,
         )
         return record.words, record.index, record
     except OperationalError:
@@ -46,12 +55,16 @@ def _daily_words(request):
         session = request.session
         key_date = session.get("practice_date")
         if key_date != today.isoformat():
-            words = WORD_FILE.read_text().splitlines()
-            session["practice_words"] = random.sample(words, 10)
+            level = request.GET.get("level")
+            if not level:
+                return None, None, None
+            session["practice_level"] = level
+            words_list = _load_words(level)
+            session["practice_words"] = random.sample(words_list, 10)
             session["practice_index"] = 0
             session["practice_date"] = today.isoformat()
         return (
-            session["practice_words"],
+            session.get("practice_words"),
             session.get("practice_index", 0),
             None,
         )
@@ -107,6 +120,8 @@ def _save_history(user, text: str, payload: str) -> None:
 @login_required
 def pronounce(request):
     words, index, record = _daily_words(request)
+    if words is None:
+        return render(request, 'pronounce/select_level.html')
     sub_record = _daily_submission(request.user)
 
     if request.method == 'POST':

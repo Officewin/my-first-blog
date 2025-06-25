@@ -24,6 +24,7 @@ class DailyPractice(models.Model):
     date = models.DateField()
     words = models.JSONField()
     index = models.PositiveSmallIntegerField(default=0)
+    level = models.CharField(max_length=20, default="beginner")
 
     class Meta:
         unique_together = ("user", "date")

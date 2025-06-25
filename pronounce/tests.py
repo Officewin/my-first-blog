@@ -8,7 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 import io
 import sys
 from django.contrib.auth import get_user_model
-from pronounce.models import DailyPractice
+from pronounce.models import DailyPractice, DailySubmission
 
 class PronounceViewTests(TestCase):
     def setUp(self):
@@ -30,6 +30,11 @@ class PronounceViewTests(TestCase):
             user=self.user,
             date=today,
             defaults={"words": words, "index": index},
+        )
+        DailySubmission.objects.update_or_create(
+            user=self.user,
+            date=today,
+            defaults={"count": index},
         )
         return words
 
@@ -160,7 +165,7 @@ class PronounceViewTests(TestCase):
             self.assertEqual(resp.status_code, 200)
         resp = self.client.post(reverse('pronounce'), {'word': 'extra', 'audio': dummy_audio})
         self.assertEqual(resp.status_code, 400)
-        self.assertIn('Daily quota reached', resp.content.decode())
+        self.assertIn('Daily submission limit reached', resp.content.decode())
 
     @patch('requests.post')
     def test_progress_persists_across_sessions(self, mock_post):
@@ -194,7 +199,7 @@ class PronounceViewTests(TestCase):
             self.assertEqual(resp.status_code, 200)
         resp = self.client.post(reverse("pronounce"), {"word": "extra", "audio": dummy_audio})
         self.assertEqual(resp.status_code, 400)
-        self.assertIn("Daily quota reached", resp.content.decode())
+        self.assertIn("Daily submission limit reached", resp.content.decode())
 
     def test_unexpected_word(self):
         self.client.login(username='tester', password='complexpass123')

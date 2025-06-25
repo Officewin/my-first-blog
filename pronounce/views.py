@@ -6,7 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 import json
-from .models import PronunciationHistory, DailyPractice
+from .models import PronunciationHistory, DailyPractice, DailySubmission
 from django.db import OperationalError
 import uuid
 import urllib.request
@@ -57,6 +57,18 @@ def _daily_words(request):
         )
 
 
+def _daily_submission(user):
+    """Return today's submission record for the given user."""
+    today = timezone.now().date()
+    try:
+        record, _ = DailySubmission.objects.get_or_create(
+            user=user, date=today, defaults={"count": 0}
+        )
+        return record
+    except OperationalError:
+        return None
+
+
 def _save_history(user, text: str, payload: str) -> None:
     """Persist a JSON payload if it can be parsed."""
     try:
@@ -77,8 +89,11 @@ def _save_history(user, text: str, payload: str) -> None:
 @login_required
 def pronounce(request):
     words, index, record = _daily_words(request)
+    sub_record = _daily_submission(request.user)
 
     if request.method == 'POST':
+        if sub_record and sub_record.count >= 10:
+            return HttpResponse('Daily submission limit reached.', status=400)
         if index >= len(words):
             return HttpResponse('Daily quota reached', status=400)
         text = request.POST.get('word')
@@ -106,6 +121,9 @@ def pronounce(request):
                     resp = requests.post(API_URL, params=params, data=params, files=files, timeout=10)
                     content = resp.text
                     _save_history(request.user, text, content)
+                    if sub_record:
+                        sub_record.count += 1
+                        sub_record.save(update_fields=["count"])
                     if record:
                         record.index = index + 1
                         record.save(update_fields=["index"])
@@ -148,6 +166,9 @@ def pronounce(request):
                 with urllib.request.urlopen(req, timeout=10) as resp:
                     content = resp.read().decode()
                     _save_history(request.user, text, content)
+                    if sub_record:
+                        sub_record.count += 1
+                        sub_record.save(update_fields=["count"])
                     if record:
                         record.index = index + 1
                         record.save(update_fields=["index"])

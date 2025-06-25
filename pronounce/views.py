@@ -7,7 +7,7 @@ from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 import json
 from .models import PronunciationHistory, DailyPractice, DailySubmission
-from django.db import OperationalError
+from django.db import OperationalError, transaction
 import uuid
 import urllib.request
 from urllib.error import URLError
@@ -69,6 +69,24 @@ def _daily_submission(user):
         return None
 
 
+def reserve_daily_submission(user) -> bool:
+    """Atomically increment today's submission count or deny if limit reached."""
+    today = timezone.now().date()
+    try:
+        with transaction.atomic():
+            record, _ = DailySubmission.objects.select_for_update().get_or_create(
+                user=user, date=today, defaults={"count": 0}
+            )
+            if record.count >= 10:
+                return False
+            record.count += 1
+            record.save(update_fields=["count"])
+        return True
+    except OperationalError:
+        # Migrations might not be applied; allow submission but without limit
+        return True
+
+
 def _save_history(user, text: str, payload: str) -> None:
     """Persist a JSON payload if it can be parsed."""
     try:
@@ -104,6 +122,8 @@ def pronounce(request):
             return HttpResponse('Unexpected word', status=400)
         if 'audio' not in request.FILES:
             return HttpResponse('Missing audio file', status=400)
+        if not reserve_daily_submission(request.user):
+            return HttpResponse('Daily submission limit reached.', status=400)
         audio = request.FILES['audio']
         files = {
             'user_audio_file': ('recording.wav', audio.read(), 'audio/wav'),
@@ -121,9 +141,6 @@ def pronounce(request):
                     resp = requests.post(API_URL, params=params, data=params, files=files, timeout=10)
                     content = resp.text
                     _save_history(request.user, text, content)
-                    if sub_record:
-                        sub_record.count += 1
-                        sub_record.save(update_fields=["count"])
                     if record:
                         record.index = index + 1
                         record.save(update_fields=["index"])
@@ -166,9 +183,6 @@ def pronounce(request):
                 with urllib.request.urlopen(req, timeout=10) as resp:
                     content = resp.read().decode()
                     _save_history(request.user, text, content)
-                    if sub_record:
-                        sub_record.count += 1
-                        sub_record.save(update_fields=["count"])
                     if record:
                         record.index = index + 1
                         record.save(update_fields=["index"])

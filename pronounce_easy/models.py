@@ -3,6 +3,17 @@ from django.conf import settings
 from django.utils import timezone
 
 
+class PracticeItem(models.Model):
+    """A word or sentence with optional image and caption."""
+
+    text = models.CharField(max_length=255, unique=True)
+    image = models.ImageField(upload_to="pronounce_images/", blank=True)
+    caption = models.CharField(max_length=255, blank=True)
+
+    def __str__(self) -> str:  # pragma: no cover - simple representation
+        return self.text
+
+
 class PronunciationHistory(models.Model):
     """Store results of pronunciation API calls for each user."""
 

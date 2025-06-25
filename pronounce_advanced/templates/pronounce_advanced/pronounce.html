@@ -12,6 +12,12 @@
     <p>Practice {{ count }} / {{ total }}</p>
     <p>Say the following word:</p>
     <h2 id="prompt-word">{{ word }}</h2>
+    {% if item and item.image %}
+    <p><img src="{{ item.image.url }}" alt="{{ item.caption }}" style="max-width:300px;"></p>
+    {% endif %}
+    {% if item and item.caption %}
+    <p>{{ item.caption }}</p>
+    {% endif %}
     <button id="record-btn">Record</button>
     <button id="stop-btn" disabled>Stop</button>
     <audio id="playback" controls style="display:none"></audio>

@@ -6,7 +6,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 import json
-from .models import PronunciationHistory, DailyPractice, DailySubmission
+from .models import (
+    PronunciationHistory,
+    DailyPractice,
+    DailySubmission,
+    PracticeItem,
+)
 from django.db import OperationalError, transaction
 import uuid
 import urllib.request
@@ -30,15 +35,15 @@ def _daily_words(request):
     """Return today's practice word list and index, using DB for persistence."""
     today = timezone.now().date()
     try:
+        word_list = list(PracticeItem.objects.values_list("text", flat=True))
+        if word_list:
+            choices = random.sample(word_list, min(10, len(word_list)))
+        else:
+            choices = random.sample(WORD_FILE.read_text().splitlines(), 10)
         record, created = DailyPractice.objects.get_or_create(
             user=request.user,
             date=today,
-            defaults={
-                "words": random.sample(
-                    WORD_FILE.read_text().splitlines(), 10
-                ),
-                "index": 0,
-            },
+            defaults={"words": choices, "index": 0},
         )
         return record.words, record.index, record
     except OperationalError:
@@ -206,10 +211,16 @@ def pronounce(request):
         )
 
     word = words[index]
+    item = PracticeItem.objects.filter(text=word).first()
     return render(
         request,
         'pronounce_advanced/pronounce.html',
-        {'word': word, 'count': index, 'total': len(words)},
+        {
+            'word': word,
+            'count': index,
+            'total': len(words),
+            'item': item,
+        },
     )
 
 

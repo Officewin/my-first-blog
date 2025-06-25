@@ -41,6 +41,8 @@ INSTALLED_APPS = [
     'agecalc',
     'accounts',
     'pronounce',
+    'pronounce_easy',
+    'pronounce_advanced',
 ]
 
 MIDDLEWARE = [

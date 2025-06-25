@@ -23,4 +23,6 @@ urlpatterns = [
     path('age/', include('agecalc.urls')),
     path('accounts/', include('accounts.urls')),
     path('pronounce/', include('pronounce.urls')),
+    path('pronounce-advanced/', include('pronounce_advanced.urls')),
+    path('pronounce-easy/', include('pronounce_easy.urls')),
 ]

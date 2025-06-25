@@ -17,7 +17,7 @@
                         {% if access and access.pronounce_easy %}
                             <a href="{% url 'pronounce_easy' %}">Pronounce Easy</a> |
                         {% endif %}
-                        {% if not access or (not access.pronounce_advanced and not access.pronounce_easy) %}
+                        {% if not access or ( not access.pronounce_advanced and not access.pronounce_easy ) %}
                             <a href="{% url 'pronounce' %}">Pronunciation Practice</a> |
                         {% endif %}
                     {% endwith %}

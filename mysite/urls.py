@@ -16,6 +16,8 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -23,4 +25,9 @@ urlpatterns = [
     path('age/', include('agecalc.urls')),
     path('accounts/', include('accounts.urls')),
     path('pronounce/', include('pronounce.urls')),
+    path('pronounce-advanced/', include('pronounce_advanced.urls')),
+    path('pronounce-easy/', include('pronounce_easy.urls')),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

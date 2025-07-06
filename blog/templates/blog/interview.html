@@ -12,11 +12,14 @@
 
         <div id="app">
             <h2>{{ message }}</h2>
-            <textarea v-model="jobDescription" placeholder="Paste job description here"></textarea><br>
-            <button @click="generateQuestions">Generate Questions</button>
-            <ul>
-                <li v-for="q in questions" :key="q">{{ q }}</li>
-            </ul>
+            <input type="file" @change="onFileChange"><br>
+            <button @click="uploadResume">Upload Resume</button>
+            <div v-if="resume">
+                <h3>Parsed Resume</h3>
+                <div v-for="(val, key) in resume" :key="key">
+                    <label>{{ key }}: <input v-model="resume[key]"></label>
+                </div>
+            </div>
         </div>
 
         <script>
@@ -24,16 +27,26 @@
             el: '#app',
             data: {
                 message: 'Interview Prep',
-                jobDescription: '',
-                questions: []
+                file: null,
+                resume: null
             },
             methods: {
-                generateQuestions() {
-                    // Placeholder for API call to generate questions
-                    this.questions = [
-                        'Tell me about yourself.',
-                        'What interests you about this position?'
-                    ];
+                onFileChange(event) {
+                    this.file = event.target.files[0];
+                },
+                uploadResume() {
+                    if (!this.file) return;
+                    const fd = new FormData();
+                    fd.append('file', this.file);
+                    fetch('{% url 'upload_resume' %}', {
+                        method: 'POST',
+                        body: fd,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    }).then(r => r.json()).then(data => {
+                        this.resume = data;
+                    }).catch(() => alert('Upload failed'));
                 }
             }
         });

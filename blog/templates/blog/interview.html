@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Interview Prep</title>
+        <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+    </head>
+    <body>
+        <header>
+            <h1><a href="/">Django Girls Blog</a></h1>
+            <nav><a href="{% url 'interview' %}">Interview</a></nav>
+        </header>
+
+        <div id="app">
+            <h2>{{ message }}</h2>
+            <textarea v-model="jobDescription" placeholder="Paste job description here"></textarea><br>
+            <button @click="generateQuestions">Generate Questions</button>
+            <ul>
+                <li v-for="q in questions" :key="q">{{ q }}</li>
+            </ul>
+        </div>
+
+        <script>
+        new Vue({
+            el: '#app',
+            data: {
+                message: 'Interview Prep',
+                jobDescription: '',
+                questions: []
+            },
+            methods: {
+                generateQuestions() {
+                    // Placeholder for API call to generate questions
+                    this.questions = [
+                        'Tell me about yourself.',
+                        'What interests you about this position?'
+                    ];
+                }
+            }
+        });
+        </script>
+    </body>
+</html>

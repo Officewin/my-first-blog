@@ -1,4 +1,10 @@
-import requests
+"""Blog views for posts and interview features."""
+
+try:
+    import requests
+except ImportError:  # pragma: no cover - handled at runtime
+    requests = None
+
 from django.http import JsonResponse
 from django.shortcuts import render
 
@@ -16,6 +22,12 @@ def interview(request):
 
 def upload_resume(request):
     """Handle resume PDF upload and parse via microservice."""
+    if not requests:
+        return JsonResponse(
+            {'error': 'requests library is not installed'},
+            status=500,
+        )
+
     if request.method == 'POST' and request.FILES.get('file'):
         uploaded_file = request.FILES['file']
         try:

@@ -7,6 +7,7 @@ except ImportError:  # pragma: no cover - handled at runtime
 
 from django.http import JsonResponse
 from django.shortcuts import render
+from django.views.decorators.csrf import csrf_exempt
 
 from .models import Resume
 
@@ -20,6 +21,7 @@ def interview(request):
     return render(request, 'blog/interview.html', {})
 
 
+@csrf_exempt
 def upload_resume(request):
     """Handle resume PDF upload and parse via microservice."""
     if not requests:

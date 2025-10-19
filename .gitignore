@@ -1,0 +1,12 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Database
+*.sqlite3
+
+# Environment
+.env
+
+# Django static files
+/static/

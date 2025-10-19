@@ -15,3 +15,14 @@ class Post(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class Resume(models.Model):
+    """Store uploaded resume files and parsed data."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
+    file = models.FileField(upload_to='resumes/')
+    parsed_data = models.JSONField(null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Resume {self.id}"

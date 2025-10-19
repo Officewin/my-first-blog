@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Interview Prep</title>
+        <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+    </head>
+    <body>
+        <header>
+            <h1><a href="/">Django Girls Blog</a></h1>
+            <nav><a href="{% url 'interview' %}">Interview</a></nav>
+        </header>
+
+        <div id="app">
+            <h2>{{ message }}</h2>
+            <input type="file" @change="onFileChange"><br>
+            <button @click="uploadResume">Upload Resume</button>
+            <div v-if="resume">
+                <h3>Parsed Resume</h3>
+                <div v-for="(val, key) in resume" :key="key">
+                    <label>{{ key }}: <input v-model="resume[key]"></label>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        new Vue({
+            el: '#app',
+            data: {
+                message: 'Interview Prep',
+                file: null,
+                resume: null
+            },
+            methods: {
+                onFileChange(event) {
+                    this.file = event.target.files[0];
+                },
+                uploadResume() {
+                    if (!this.file) return;
+                    const fd = new FormData();
+                    fd.append('file', this.file);
+                    fetch('{% url 'upload_resume' %}', {
+                        method: 'POST',
+                        body: fd,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    }).then(r => r.json()).then(data => {
+                        this.resume = data;
+                    }).catch(() => alert('Upload failed'));
+                }
+            }
+        });
+        </script>
+    </body>
+</html>

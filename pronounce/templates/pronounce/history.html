@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pronunciation History</title>
+</head>
+<body>
+    {% load pronounce_extras %}
+    <h1>Your Pronunciation History</h1>
+    <table border="1">
+        <tr>
+            <th>Date</th>
+            <th>Text</th>
+            <th>IELTS</th>
+            <th>PTE</th>
+            <th>SpeechAce</th>
+            <th>TOEIC</th>
+            <th>CEFR</th>
+        </tr>
+        {% for item in history %}
+        <tr>
+            <td>{{ item.created|date:"Y-m-d H:i" }}</td>
+            <td>{{ item.text }}</td>
+            <td>{{ item.response|metric_score:'ielts' }}</td>
+            <td>{{ item.response|metric_score:'pte' }}</td>
+            <td>{{ item.response|metric_score:'speechace' }}</td>
+            <td>{{ item.response|metric_score:'toeic' }}</td>
+            <td>{{ item.response|metric_score:'cefr' }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7">No history yet.</td></tr>
+        {% endfor %}
+    </table>
+    {% if migration_needed %}
+    <p style="color: red;">
+        History table missing. Run <code>python manage.py migrate</code> to set it up.
+    </p>
+    {% endif %}
+    <p><a href="{% url 'pronounce' %}">Back to practice</a></p>
+</body>
+</html>

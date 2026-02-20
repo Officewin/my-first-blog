@@ -5,55 +5,173 @@
 </head>
 <body>
     <h1>Pronunciation Practice</h1>
+    <p><a href="{% url 'pronounce_history' %}">View History</a></p>
+    {% if done %}
+    <p>You have completed today's practice.</p>
+    {% else %}
+    <p>Practice {{ count }} / {{ total }}</p>
     <p>Say the following word:</p>
     <h2 id="prompt-word">{{ word }}</h2>
     <button id="record-btn">Record</button>
     <button id="stop-btn" disabled>Stop</button>
+    <audio id="playback" controls style="display:none"></audio>
+    <button id="upload-btn" style="display:none;">Submit</button>
+    <button id="rerecord-btn" style="display:none;">Record Again</button>
     <form id="upload-form" method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <input type="hidden" name="word" value="{{ word }}">
         <input type="file" id="audio-file" name="audio" style="display:none">
     </form>
-    <pre id="result"></pre>
+    {% endif %}
+    <div id="result"></div>
+    {% if not done %}
+    <button id="next-btn" style="display:none;">Next Word</button>
+    {% endif %}
     <script>
     const recordBtn = document.getElementById('record-btn');
     const stopBtn = document.getElementById('stop-btn');
     const audioFileInput = document.getElementById('audio-file');
     const form = document.getElementById('upload-form');
+    const playback = document.getElementById('playback');
+    const uploadBtn = document.getElementById('upload-btn');
+    const rerecordBtn = document.getElementById('rerecord-btn');
     let mediaRecorder;
+    let currentStream;
     let audioChunks = [];
+    let limitTimer;
 
     recordBtn.onclick = async () => {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
+        currentStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(currentStream);
         audioChunks = [];
         mediaRecorder.ondataavailable = e => {
             if (e.data.size > 0) audioChunks.push(e.data);
         };
+        mediaRecorder.onstop = preparePlayback;
         mediaRecorder.start();
+        limitTimer = setTimeout(() => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                stopRecording();
+            }
+        }, 12000);
         recordBtn.disabled = true;
         stopBtn.disabled = false;
+        playback.style.display = 'none';
+        uploadBtn.style.display = 'none';
+        rerecordBtn.style.display = 'none';
     };
 
-    stopBtn.onclick = async () => {
-        mediaRecorder.stop();
+    function stopRecording() {
+        clearTimeout(limitTimer);
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+            if (currentStream) {
+                currentStream.getTracks().forEach(t => t.stop());
+            }
+        }
         stopBtn.disabled = true;
         recordBtn.disabled = false;
-        mediaRecorder.onstop = async () => {
-            const blob = new Blob(audioChunks, { type: 'audio/wav' });
-            const file = new File([blob], 'recording.wav', { type: 'audio/wav' });
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(file);
-            audioFileInput.files = dataTransfer.files;
-            const formData = new FormData(form);
-            const resp = await fetch('', {
-                method: 'POST',
-                body: formData
-            });
-            const text = await resp.text();
-            document.getElementById('result').textContent = text;
-        };
+    }
+
+    stopBtn.onclick = stopRecording;
+
+    function preparePlayback() {
+        const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+        const file = new File([blob], 'recording.webm', { type: mediaRecorder.mimeType || 'audio/webm' });
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        audioFileInput.files = dataTransfer.files;
+        playback.src = URL.createObjectURL(blob);
+        playback.load();
+        playback.style.display = 'block';
+        uploadBtn.style.display = 'inline';
+        rerecordBtn.style.display = 'inline';
+    }
+
+    uploadBtn.onclick = async () => {
+        const formData = new FormData(form);
+        const resp = await fetch('', {
+            method: 'POST',
+            body: formData
+        });
+        const text = await resp.text();
+        const container = document.getElementById('result');
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            container.textContent = text;
+            return;
+        }
+        container.innerHTML = formatAsTable(data);
+        const nextBtn = document.getElementById('next-btn');
+        if (nextBtn) nextBtn.style.display = 'block';
+        uploadBtn.style.display = 'none';
+        rerecordBtn.style.display = 'none';
     };
+
+    rerecordBtn.onclick = () => {
+        playback.pause();
+        if (playback.src) {
+            URL.revokeObjectURL(playback.src);
+        }
+        playback.removeAttribute('src');
+        playback.style.display = 'none';
+        uploadBtn.style.display = 'none';
+        rerecordBtn.style.display = 'none';
+        audioChunks = [];
+        document.getElementById('result').innerHTML = '';
+    };
+
+    function formatAsTable(data) {
+        let html = '';
+        if (data.text_score && data.text_score.word_score_list) {
+            data.text_score.word_score_list.forEach(word => {
+                html += `<h3>${word.word}</h3>`;
+                html += '<table border="1"><tr><th>Phoneme</th><th>Score</th></tr>';
+                (word.phone_score_list || []).forEach(p => {
+                    html += `<tr><td>${p.phone}</td><td>${p.quality_score}</td></tr>`;
+                });
+                html += '</table>';
+            });
+        }
+        html += '<table border="1"><tr><th>Metric</th><th>Score</th></tr>';
+        const metrics = [
+            [
+                'IELTS',
+                data.ielts_score?.pronunciation ?? data.text_score?.ielts_score?.pronunciation
+            ],
+            [
+                'PTE',
+                data.pte_score?.pronunciation ?? data.text_score?.pte_score?.pronunciation
+            ],
+            [
+                'SpeechAce',
+                data.speechace_score?.pronunciation ?? data.text_score?.speechace_score?.pronunciation
+            ],
+            [
+                'TOEIC',
+                data.toeic_score?.pronunciation ?? data.text_score?.toeic_score?.pronunciation
+            ],
+            [
+                'CEFR',
+                data.cefr_score?.pronunciation ?? data.text_score?.cefr_score?.pronunciation
+            ]
+        ];
+        metrics.forEach(([name, score]) => {
+            if (score !== undefined) {
+                html += `<tr><td>${name}</td><td>${score}</td></tr>`;
+            }
+        });
+        html += '</table>';
+        return html;
+    }
+    const nextBtnElem = document.getElementById('next-btn');
+    if (nextBtnElem) {
+        nextBtnElem.onclick = () => {
+            window.location.reload();
+        };
+    }
     </script>
 </body>
 </html>
